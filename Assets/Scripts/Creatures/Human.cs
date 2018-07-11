@@ -12,7 +12,7 @@ public class Human : BaseCreature
     float headPitch;
 
     [SerializeField]
-    float jumpForce = 5;
+    float jumpForce = 2500;
 
     private void Start()
     {
@@ -26,13 +26,26 @@ public class Human : BaseCreature
         return GetComponent<CapsuleCollider>().height;
     }
 
+    protected override Vector3 GroundCheckStart()
+    {
+        Vector3 ret = transform.position;
+        ret.y -= GetHeight() / 2;
+
+        return ret;
+    }
+
     public void Jump()
     {
+        print("Attempt jump");
         if(IsGrounded())
         {
             Vector3 vel = rb.velocity;
             vel.y = jumpForce;
             rb.velocity = vel;
+        }
+        else
+        {
+            print("Not on ground");
         }
     }
 
@@ -49,6 +62,8 @@ public class Human : BaseCreature
         rotatedVector += direction.z * transform.forward;
         rotatedVector += direction.x * transform.right;
 
+        rotatedVector.y = rb.velocity.y;
+
         rb.velocity = rotatedVector;
     }
     
@@ -58,7 +73,22 @@ public class Human : BaseCreature
         Vector3 rotation = transform.eulerAngles;
 
         rotation.y += rot.y;
-        headPitch += rot.x;
+        
+
+        //clamp camera rotation
+        if(headPitch + rot.x >= 85)
+        {
+            headPitch = 85;
+        }
+        else if(headPitch + rot.x <= -85)
+        {
+            headPitch = -85;
+        }
+        else
+        {
+            headPitch += rot.x;
+        }
+        
 
         transform.eulerAngles = rotation;
 

@@ -40,6 +40,7 @@ public class HumanPlayerController : MonoBehaviour
             controlledHuman.Jump();
         }
 
+        Cursor.lockState = CursorLockMode.Locked;
 
         //movement input
         Vector3 inputVector = Vector3.zero;

@@ -99,9 +99,14 @@ public abstract class BaseCreature : MonoBehaviour
 
     public abstract void Rotate( Vector3 rot );
 
+    protected virtual Vector3 GroundCheckStart()
+    {
+        return transform.position;
+    }
+
     public bool IsGrounded()
     {
         Ray ray = new Ray(transform.position, Vector3.down);
-        return Physics.Raycast(ray, .5f);
+        return Physics.Raycast(ray, 25f);
     }
 }
