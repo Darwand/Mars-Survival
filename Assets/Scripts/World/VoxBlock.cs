@@ -114,12 +114,7 @@ namespace World
 
         bool VoxPoint(int x, int y, int z)
         {
-            return voxelMap[x, y, z] != WorldMaterial.NONE;
-        }
-
-        WorldMaterial VoxPointMaterial( int x, int y, int z )
-        {
-            return voxelMap[x, y, z];
+            return IsHole(GetMaterialForVoxel(x, y, z));
         }
 
         bool IsHole(WorldMaterial material)
@@ -129,34 +124,21 @@ namespace World
 
         bool VoxHasAdjacentHole( int x, int y, int z )
         {
-            if (IsHole(GetMaterialForVoxel(x + 1, y, z)))
+            for(int cx = 1; cx >= -1; cx -= 1)
             {
-                return true;
-            }
+                for (int cy = 1; cy >= -1; cy -= 1)
+                {
+                    for (int cz = 1; cz >= -1; cz -= 1)
+                    {
+                        //print("For vox : " + x + " : " + " : " + y + ": " + z);
+                        //print("Checked vox : " + cx + " : " + " : " + cy + ": " + cz);
 
-            if (IsHole(GetMaterialForVoxel(x - 1, y, z)))
-            {
-                return true;
-            }
-
-            if (IsHole(GetMaterialForVoxel(x, y + 1, z)))
-            {
-                return true;
-            }
-
-            if (IsHole(GetMaterialForVoxel(x, y - 1, z)))
-            {
-                return true;
-            }
-
-            if (IsHole(GetMaterialForVoxel(x, y, z + 1)))
-            {
-                return true;
-            }
-
-            if (IsHole(GetMaterialForVoxel(x, y, z - 1)))
-            {
-                return true;
+                        if(IsHole(GetMaterialForVoxel(x + cx, y + cy, z + cz)))
+                        {
+                            return true;
+                        }
+                    }
+                }
             }
 
             return false;
@@ -192,7 +174,7 @@ namespace World
                         {
                             positions.Add(new Position(x, y, z), verts.Count);
                             verts.Add(new Vector3(x, y, z));
-                            uvs.Add(new Vector2(x, z));
+                            uvs.Add(new Vector2(x + y, z + (y + 1)));
                         }
                     }
                 }
@@ -216,11 +198,11 @@ namespace World
 
                 List<int> adj = GetAdjecentVerts(Position.FromVector(v), vertPositions);
 
-                for(int c = 0; c < adj.Count; c+=2)
+                for(int c = 0; c < adj.Count; c+=3)
                 {
-                    tris.Add(i);
                     tris.Add(adj[c]);
                     tris.Add(adj[c + 1]);
+                    tris.Add(adj[c + 2]);
                 }
 
                 usedVerts.Add(i);
@@ -228,143 +210,177 @@ namespace World
 
             return tris.ToArray();
         }
+        bool VoxHasHoleInDir( int x, int y, int z, Vector3 dir )
+        {
+            Position offset = Position.FromVector(dir);
+
+            return VoxPoint(x + offset.x, y + offset.y, z + offset.z);
+        }
+
+
+        bool MakeVertFor( int x, int y, int z, Vector3 dir )
+        {
+            return VoxelHasVert(x, y, z) && VoxHasHoleInDir(x, y, z, dir);
+        }
 
         List<int> GetAdjecentVerts(Position pos, Dictionary<Position, int> vertPositions)
         {
             List<int> verts = new List<int>();
 
+            int baseVert = vertPositions[pos];
+
             #region straights
 
+            //forward faces
+
             //+x +y
-            if(VoxelHasVert(pos.x + 1, pos.y, pos.z) && VoxelHasVert(pos.x, pos.y + 1, pos.z))
+            if (MakeVertFor(pos.x + 1, pos.y, pos.z, Vector3.forward) && MakeVertFor(pos.x, pos.y + 1, pos.z, Vector3.forward))
             {
                 int v1 = vertPositions[new Position(pos.x + 1, pos.y, pos.z)];
                 int v2 = vertPositions[new Position(pos.x, pos.y + 1, pos.z)];
 
-                verts.Add(v1);
-                verts.Add(v2);
-            }
-
-            //-x +y
-            if (VoxelHasVert(pos.x - 1, pos.y, pos.z) && VoxelHasVert(pos.x, pos.y + 1, pos.z))
-            {
-                int v1 = vertPositions[new Position(pos.x - 1, pos.y, pos.z)];
-                int v2 = vertPositions[new Position(pos.x, pos.y + 1, pos.z)];
-
-                verts.Add(v1);
-                verts.Add(v2);
-            }
-
-            //+x +z
-            if (VoxelHasVert(pos.x + 1, pos.y, pos.z) && VoxelHasVert(pos.x, pos.y, pos.z + 1))
-            {
-                int v1 = vertPositions[new Position(pos.x + 1, pos.y, pos.z)];
-                int v2 = vertPositions[new Position(pos.x, pos.y, pos.z + 1)];
-
-                verts.Add(v1);
-                verts.Add(v2);
-            }
-            
-            //-x +z
-            if (VoxelHasVert(pos.x - 1, pos.y, pos.z) && VoxelHasVert(pos.x, pos.y, pos.z + 1))
-            {
-                int v1 = vertPositions[new Position(pos.x - 1, pos.y, pos.z)];
-                int v2 = vertPositions[new Position(pos.x, pos.y, pos.z + 1)];
-
-                verts.Add(v1);
-                verts.Add(v2);
-            }
-
-            //+x -y
-            if (VoxelHasVert(pos.x + 1, pos.y, pos.z) && VoxelHasVert(pos.x, pos.y - 1, pos.z))
-            {
-                int v1 = vertPositions[new Position(pos.x + 1, pos.y, pos.z)];
-                int v2 = vertPositions[new Position(pos.x, pos.y - 1, pos.z)];
-
+                verts.Add(baseVert);
                 verts.Add(v1);
                 verts.Add(v2);
             }
 
             //-x -y
-            if (VoxelHasVert(pos.x - 1, pos.y, pos.z) && VoxelHasVert(pos.x, pos.y - 1, pos.z))
+            if (MakeVertFor(pos.x - 1, pos.y, pos.z, Vector3.forward) && MakeVertFor(pos.x, pos.y - 1, pos.z, Vector3.forward))
             {
                 int v1 = vertPositions[new Position(pos.x - 1, pos.y, pos.z)];
                 int v2 = vertPositions[new Position(pos.x, pos.y - 1, pos.z)];
 
+                verts.Add(baseVert);
+                verts.Add(v1);
+                verts.Add(v2);
+            }
+
+            //back faces
+
+            //-x +y
+            if (MakeVertFor(pos.x - 1, pos.y, pos.z, -Vector3.forward) && MakeVertFor(pos.x, pos.y + 1, pos.z, -Vector3.forward))
+            {
+                int v1 = vertPositions[new Position(pos.x - 1, pos.y, pos.z)];
+                int v2 = vertPositions[new Position(pos.x, pos.y + 1, pos.z)];
+
+                verts.Add(baseVert);
+                verts.Add(v1);
+                verts.Add(v2);
+            }
+            
+            //+x -y
+            if (MakeVertFor(pos.x + 1, pos.y, pos.z, -Vector3.forward) && MakeVertFor(pos.x, pos.y - 1, pos.z, -Vector3.forward))
+            {
+                int v1 = vertPositions[new Position(pos.x, pos.y - 1, pos.z)];
+                int v2 = vertPositions[new Position(pos.x + 1, pos.y, pos.z)];
+
+                verts.Add(baseVert);
+                verts.Add(v2);
+                verts.Add(v1);
+
+            }
+
+
+            //down faces
+
+            //+x +z
+            if (MakeVertFor(pos.x + 1, pos.y, pos.z, -Vector3.up) && MakeVertFor(pos.x, pos.y, pos.z + 1, -Vector3.up))
+            {
+                int v1 = vertPositions[new Position(pos.x + 1, pos.y, pos.z)];
+                int v2 = vertPositions[new Position(pos.x, pos.y, pos.z + 1)];
+
+                verts.Add(baseVert);
+                verts.Add(v1);
+                verts.Add(v2);
+            }
+            
+            //-x -z
+            if (MakeVertFor(pos.x - 1, pos.y, pos.z, -Vector3.up) && MakeVertFor(pos.x, pos.y, pos.z - 1, -Vector3.up))
+            {
+                int v1 = vertPositions[new Position(pos.x - 1, pos.y, pos.z)];
+                int v2 = vertPositions[new Position(pos.x, pos.y, pos.z - 1)];
+
+                verts.Add(baseVert);
+                verts.Add(v1);
+                verts.Add(v2);
+            }
+
+
+
+            //up faces
+            
+            //-x +z
+            if (MakeVertFor(pos.x - 1, pos.y, pos.z, Vector3.up) && MakeVertFor(pos.x, pos.y, pos.z + 1, Vector3.up))
+            {
+                int v1 = vertPositions[new Position(pos.x - 1, pos.y, pos.z)];
+                int v2 = vertPositions[new Position(pos.x, pos.y, pos.z + 1)];
+
+                verts.Add(baseVert);
                 verts.Add(v1);
                 verts.Add(v2);
             }
 
             //+x -z
-            if (VoxelHasVert(pos.x + 1, pos.y, pos.z) && VoxelHasVert(pos.x, pos.y, pos.z - 1))
+            if (MakeVertFor(pos.x + 1, pos.y, pos.z, Vector3.up) && MakeVertFor(pos.x, pos.y, pos.z - 1, Vector3.up))
             {
                 int v1 = vertPositions[new Position(pos.x + 1, pos.y, pos.z)];
                 int v2 = vertPositions[new Position(pos.x, pos.y, pos.z - 1)];
 
+                verts.Add(baseVert);
                 verts.Add(v1);
                 verts.Add(v2);
             }
 
-            //-x -z
-            if (VoxelHasVert(pos.x - 1, pos.y, pos.z) && VoxelHasVert(pos.x, pos.y, pos.z - 1))
-            {
-                int v1 = vertPositions[new Position(pos.x - 1, pos.y, pos.z)];
-                int v2 = vertPositions[new Position(pos.x, pos.y, pos.z - 1)];
 
-                verts.Add(v1);
-                verts.Add(v2);
-            }
+            //left faces
 
             //+z +y
-            if (VoxelHasVert(pos.x, pos.y, pos.z + 1) && VoxelHasVert(pos.x, pos.y + 1, pos.z))
+            if (MakeVertFor(pos.x, pos.y, pos.z + 1, -Vector3.right) && MakeVertFor(pos.x, pos.y + 1, pos.z, -Vector3.right))
             {
                 int v1 = vertPositions[new Position(pos.x, pos.y, pos.z + 1)];
                 int v2 = vertPositions[new Position(pos.x, pos.y + 1, pos.z)];
 
-                verts.Add(v1);
-                verts.Add(v2);
-            }
-
-            //+z -y
-            if (VoxelHasVert(pos.x, pos.y, pos.z + 1) && VoxelHasVert(pos.x, pos.y - 1, pos.z))
-            {
-                int v1 = vertPositions[new Position(pos.x, pos.y, pos.z + 1)];
-                int v2 = vertPositions[new Position(pos.x, pos.y - 1, pos.z)];
-
-                verts.Add(v1);
-                verts.Add(v2);
-            }
-
-            //-z +y
-            if (VoxelHasVert(pos.x, pos.y, pos.z - 1) && VoxelHasVert(pos.x, pos.y + 1, pos.z))
-            {
-                int v1 = vertPositions[new Position(pos.x, pos.y, pos.z - 1)];
-                int v2 = vertPositions[new Position(pos.x, pos.y + 1, pos.z)];
-
+                verts.Add(baseVert);
                 verts.Add(v1);
                 verts.Add(v2);
             }
 
             //-z -y
-            if (VoxelHasVert(pos.x, pos.y, pos.z - 1) && VoxelHasVert(pos.x, pos.y - 1, pos.z))
+            if (MakeVertFor(pos.x, pos.y, pos.z - 1, -Vector3.right) && MakeVertFor(pos.x, pos.y - 1, pos.z, -Vector3.right))
             {
                 int v1 = vertPositions[new Position(pos.x, pos.y, pos.z - 1)];
                 int v2 = vertPositions[new Position(pos.x, pos.y - 1, pos.z)];
 
+                verts.Add(baseVert);
                 verts.Add(v1);
                 verts.Add(v2);
             }
 
-            #endregion
 
-            #region Diagonals
-
+            //right faces
             
-            #endregion
+            //+z -y
+            if (MakeVertFor(pos.x, pos.y, pos.z + 1, Vector3.right) && MakeVertFor(pos.x, pos.y - 1, pos.z, Vector3.right))
+            {
+                int v1 = vertPositions[new Position(pos.x, pos.y, pos.z + 1)];
+                int v2 = vertPositions[new Position(pos.x, pos.y - 1, pos.z)];
 
-            #region Corners
+                verts.Add(baseVert);
+                verts.Add(v1);
+                verts.Add(v2);
+            }
 
-            
+            //-z +y
+            if (MakeVertFor(pos.x, pos.y, pos.z - 1, Vector3.right) && MakeVertFor(pos.x, pos.y + 1, pos.z, Vector3.right))
+            {
+                int v1 = vertPositions[new Position(pos.x, pos.y, pos.z - 1)];
+                int v2 = vertPositions[new Position(pos.x, pos.y + 1, pos.z)];
+
+                verts.Add(baseVert);
+                verts.Add(v1);
+                verts.Add(v2);
+            }
+
 
 
             #endregion
