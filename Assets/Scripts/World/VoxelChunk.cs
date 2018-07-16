@@ -1,14 +1,38 @@
 ﻿
 
+using UnityEngine;
+
 namespace World
 {
+    public enum WorldMaterial
+    {
+        NONE, Dirt, MAX
+    }
+
     public class VoxelChunk
     {
 
-        static int width = 1;
-        static int height = 1;
+        static int width = 2;
+        static int height = 2;
 
         VoxelBlock[,,] voxChunks;
+
+        WorldMaterial[,,] voxelMap;
+
+        #region generator_vars
+
+        static float peakHeight = 64;
+        static float valleyHeight = 32;
+
+        static float dirtValue = .7f;
+
+        static float xzxSeed = 0;
+        static float xzySeed = 0;
+
+        static float xyxSeed = 0;
+        static float xyySeed = 0;
+
+        #endregion
 
         int startX;
         int startZ;
@@ -28,8 +52,33 @@ namespace World
             startX = x * width;
             startZ = z * width;
 
+            GenerateVoxelMap();
+
             voxChunks = new VoxelBlock[width, height, width];
             AddChunks();
+
+            
+        }
+
+        public void Destroy(int x, int y, int z)
+        {
+            voxelMap[2, 5, 2] = WorldMaterial.NONE;
+        }
+
+        void GenerateVoxelMap()
+        {
+            voxelMap = new WorldMaterial[(width * VoxelBlock.size), (height * VoxelBlock.size), (width * VoxelBlock.size)];
+
+            for (int x = 0; x < (width * VoxelBlock.size); x++)
+            {
+                for (int y = 0; y < (height * VoxelBlock.size); y++)
+                {
+                    for (int z = 0; z < (width * VoxelBlock.size); z++)
+                    {
+                        voxelMap[x, y, z] = CreateMaterialForVoxel(x, y, z);
+                    }
+                }
+            }
         }
 
         public void DrawCollection()
@@ -63,5 +112,69 @@ namespace World
             return voxChunks[x, y, z];
         }
 
+        WorldMaterial CreateMaterialForVoxel( int x, int y, int z )
+        {
+            float w = GetWeightAtPosition(x, y, z);
+
+            if (w < dirtValue)
+            {
+                return WorldMaterial.NONE;
+            }
+            else if (w >= dirtValue)
+            {
+                return WorldMaterial.Dirt;
+            }
+
+            return WorldMaterial.Dirt;
+        }
+
+        float GetWeightAtPosition( int x, int y, int z )
+        {
+            float height = GetHeight(x, z);
+
+            float weight = 0;
+
+            if (z <= height)
+            {
+                weight = height * GetDepthDenstity(x, y, z);
+            }
+            else
+            {
+                weight = height;
+            }
+
+            return weight;
+        }
+
+        float GetHeight( float x, float y )
+        {
+
+            float height = 0;
+            float basePerlin = Mathf.PerlinNoise(xzxSeed + x, xzySeed + y);
+
+            height = valleyHeight + (basePerlin * (peakHeight - valleyHeight));
+            return height;
+        }
+
+        float GetDepthDenstity( int x, int y, int z )
+        {
+            return Mathf.PerlinNoise(xyxSeed + x, xyySeed + y);
+        }
+
+        public WorldMaterial GetMaterialForVoxel( int x, int y, int z )
+        {
+            if(x < 0 || x >= VoxelBlock.size * width || y < 0 || y >= VoxelBlock.size * height || z < 0 || z >= VoxelBlock.size * width)
+            {
+                return WorldMaterial.MAX;
+            }
+            return voxelMap[x, y, z];
+        }
+
+        public static bool MaterialIsHole(WorldMaterial mat)
+        {
+            return mat == WorldMaterial.NONE || mat == WorldMaterial.MAX;
+        }
     }
+
+    
 }
