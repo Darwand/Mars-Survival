@@ -12,7 +12,7 @@ namespace World
     public class VoxelChunk
     {
 
-        static int width = 1;
+        static int width = 2;
         static int height = 1;
 
         VoxelBlock[,,] voxChunks;
