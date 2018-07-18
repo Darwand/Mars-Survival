@@ -67,7 +67,11 @@ namespace World
 
         void Update()
         {
-            
+            if(Input.GetKeyDown(KeyCode.Space))
+            {
+                chunk.Destroy(0, 0, 0);
+                MakeMesh();
+            }
         }
         void MakeMesh()
         {
@@ -105,7 +109,21 @@ namespace World
 
             return verts;
         }
-        
+
+        private void OnDrawGizmosSelected()
+        {
+            Vector3[] v = ms.vertices;
+            Vector3[] n = ms.normals;
+
+            for(int i = 0; i < v.Length; i++)
+            {
+                Quaternion rot = Quaternion.LookRotation(n[i], Vector3.up);
+
+                Handles.ArrowHandleCap(0, v[i], rot, .2f, EventType.Repaint);
+                Handles.Label(v[i], i.ToString());
+            }
+        }
+
         Vector3[] MakeVerts(out Dictionary<Vector3, int> vertPositions, out Vector2[] uv, out Vector3[] normals)
         {
             List<Vector3> verts = new List<Vector3>();
@@ -252,6 +270,8 @@ namespace World
             int[] faceVerts = new int[16];
             Vector3[] vertsInFace = new Vector3[16];
 
+            Dictionary<int, float> vertWeight = new Dictionary<int, float>();
+
             Vector3 checkPoint = Vector3.zero;
             Vector3 modifer = Vector3.zero;
             int vCount;
@@ -279,263 +299,157 @@ namespace World
                                     {
                                         faceVerts[vCount++] = vertPositions[checkPoint + modifer + offSet];
                                     }
-
                                 }
                             }
                         }
-                        
-                        if(vCount == 4)
+
+                        if (vCount >= 4)
                         {
 
-                            Vector3 faceNormal = normals[faceVerts[0]] + normals[faceVerts[1]] + normals[faceVerts[2]] + normals[faceVerts[3]];
+                            Vector3 faceNormal = Vector3.zero;
+                            Vector3 facePosition = Vector3.zero;
+
+                            for (int i = 0; i < vCount; i++)
+                            {
+                                faceNormal += normals[faceVerts[i]];
+                                facePosition += verts[faceVerts[i]];
+                            }
                             faceNormal = Vector3.ClampMagnitude(faceNormal, 1);
 
-                            if(correctOrderDirections.Contains(faceNormal))
-                            {
-                                tris.Add(faceVerts[0]);
-                                tris.Add(faceVerts[2]);
-                                tris.Add(faceVerts[3]);
+                            
+                            
 
-                                tris.Add(faceVerts[3]);
-                                tris.Add(faceVerts[1]);
-                                tris.Add(faceVerts[0]);
+                            int[] orderedVerts = new int[8];
+
+                            if(orderedVerts[0] == 180)
+                            {
+                                print("a");
                             }
-                            else
-                            {
-                                tris.Add(faceVerts[3]);
-                                tris.Add(faceVerts[2]);
-                                tris.Add(faceVerts[0]);
 
-                                tris.Add(faceVerts[0]);
-                                tris.Add(faceVerts[1]);
-                                tris.Add(faceVerts[3]);
+                            for (int i = 0; i < vCount; i++)
+                            {
+                                Vector3 dirv = facePosition - verts[faceVerts[i + 1]];
+                                Quaternion q = Quaternion.LookRotation(faceNormal, dirv);
+                                
+                                float weight = q.eulerAngles.z;
+                                
+                                vertWeight.Add(faceVerts[i], -weight);
+                            }
+
+                            float highest = -1;
+                            int index = -1;
+                            int startIndex = 0;
+                            int vindex = 0;
+
+                            while (vertWeight.Count > 0)
+                            {
+                                index = -1;
+                                highest = 1;
+
+                                foreach (var kv in vertWeight)
+                                {
+                                    if(highest == 1 || kv.Value > highest)
+                                    {
+                                        index = kv.Key;
+                                        highest = vertWeight[index];
+                                    }
+                                }
+
+                                if (vindex == 0)
+                                {
+                                    startIndex = index;
+                                    tris.Add(index);
+                                }
+                                else if (vindex == 1)
+                                {
+                                    tris.Add(index);
+                                }
+                                else if (vindex == 2)
+                                {
+                                    tris.Add(index);
+                                    tris.Add(index);
+                                }
+                                else if (vindex != vCount - 1)
+                                {
+                                    tris.Add(index);
+                                    tris.Add(startIndex);
+                                    tris.Add(index);
+                                }
+                                else
+                                {
+                                    tris.Add(index);
+                                    tris.Add(startIndex);
+                                }
+                                ++vindex;
+                                vertWeight.Remove(index);
                             }
                         }
-                        else if(vCount == 3)
+                        else if (vCount == 3)
                         {
 
-                            Vector3 faceNormal = normals[faceVerts[0]] + normals[faceVerts[1]] + normals[faceVerts[2]];
+                            Vector3 faceNormal = Vector3.zero;
+                            Vector3 facePosition = Vector3.zero;
+
+                            for (int i = 0; i < vCount; i++)
+                            {
+                                faceNormal += normals[faceVerts[i]];
+                                facePosition += verts[faceVerts[i]];
+                            }
                             faceNormal = Vector3.ClampMagnitude(faceNormal, 1);
 
-                            if(correctOrderDirections.Contains(faceNormal))
+                            for (int i = 0; i < vCount; i++)
                             {
-                                tris.Add(faceVerts[0]);
-                                tris.Add(faceVerts[1]);
-                                tris.Add(faceVerts[2]);
+                                Vector3 dirv = facePosition - verts[faceVerts[i + 1]];
+                                Quaternion q = Quaternion.LookRotation(faceNormal, dirv);
+
+                                float weight = q.eulerAngles.magnitude;
+
+                                vertWeight.Add(faceVerts[i], -weight);
                             }
-                            else
+
+                            int index;
+                            float highest;
+
+
+                            while (vertWeight.Count > 0)
                             {
-                                tris.Add(faceVerts[2]);
-                                tris.Add(faceVerts[1]);
-                                tris.Add(faceVerts[0]);
+                                index = -1;
+                                highest = 1;
+
+                                foreach (var kv in vertWeight)
+                                {
+                                    if (highest == 1 || kv.Value > highest)
+                                    {
+                                        index = kv.Key;
+                                        highest = vertWeight[index];
+                                    }
+                                }
+                                tris.Add(index);
+                                vertWeight.Remove(index);
                             }
+
+                            //if (correctOrderDirections.Contains(faceNormal))
+                            //{
+                            //    tris.Add(faceVerts[0]);
+                            //    tris.Add(faceVerts[1]);
+                            //    tris.Add(faceVerts[2]);
+                            //}
+                            //else
+                            //{
+                            //    tris.Add(faceVerts[2]);
+                            //    tris.Add(faceVerts[1]);
+                            //    tris.Add(faceVerts[0]);
+                            //}
+                        }
+                        else
+                        {
+                            Debug.LogError("To few vertex");
                         }
 
                     }
                 }
             }
-
-           #region old
-            //for (int i = 0; i < verts.Length; i++)
-            //{
-            //    int vi = vertPositions[verts[i]];
-            //    Vector3 vv = verts[i];
-            //    Vector3 n = normals[i];
-
-            //    Vector3 voxPosition = vv - (.5f * n);
-                
-            //    int vCount = 0;
-
-            //    Vector3 query;
-
-            //    vertsInFace[vCount] = vv;
-            //    faceVerts[vCount++] = vi;
-
-            //    if (n.x != 0)
-            //    {
-            //        query = voxPosition + (n.x * new Vector3(0, .5f, 0));
-            //        if (vertPositions.ContainsKey(query))
-            //        {
-            //            vertsInFace[vCount] = query;
-            //            faceVerts[vCount++] = vertPositions[query];
-            //        }
-
-            //        query = voxPosition + (n.x * new Vector3(0, 0, .5f));
-            //        if (vertPositions.ContainsKey(query))
-            //        {
-            //            vertsInFace[vCount] = query;
-            //            faceVerts[vCount++] = vertPositions[query];
-            //        }
-            //    }
-
-            //    if (n.y != 0)
-            //    {
-            //        query = voxPosition + (n.y * new Vector3(.5f, 0, 0));
-            //        if (vertPositions.ContainsKey(query))
-            //        {
-            //            vertsInFace[vCount] = query;
-            //            faceVerts[vCount++] = vertPositions[query];
-            //        }
-
-            //        query = voxPosition + (n.y * new Vector3(0, 0, .5f));
-            //        if (vertPositions.ContainsKey(query))
-            //        {
-            //            vertsInFace[vCount] = query;
-            //            faceVerts[vCount++] = vertPositions[query];
-            //        }
-            //    }
-
-            //    if (n.z != 0)
-            //    {
-            //        query = voxPosition + (n.z * new Vector3(.5f, 0, 0));
-            //        if (vertPositions.ContainsKey(query))
-            //        {
-            //            vertsInFace[vCount] = query;
-            //            faceVerts[vCount++] = vertPositions[query];
-            //        }
-
-            //        query = voxPosition + (n.z * new Vector3(0, .5f, 0));
-            //        if (vertPositions.ContainsKey(query))
-            //        {
-            //            vertsInFace[vCount] = query;
-            //            faceVerts[vCount++] = vertPositions[query];
-            //        }
-            //    }
-
-
-            //    if (vCount == 3)
-            //    {
-            //        //vert is part of corner
-            //        tris.Add(faceVerts[0]);
-            //        tris.Add(faceVerts[1]);
-            //        tris.Add(faceVerts[2]);
-
-            //    }
-            //    else if (vCount == 2)
-            //    {
-            //        continue;
-            //        //slope
-
-            //        Vector3 dir = new Vector3(1, 1, 1);
-            //        dir -= normals[vi];
-            //        dir -= normals[faceVerts[1]];
-
-            //        dir.x = Mathf.Clamp(dir.x, -1, 1);
-            //        dir.y = Mathf.Clamp(dir.y, -1, 1);
-            //        dir.z = Mathf.Clamp(dir.z, -1, 1);
-
-            //        query = voxPosition + dir;
-
-            //        if (vertPositions.ContainsKey(query))
-            //        {
-            //            faceVerts[vCount++] = vertPositions[query];
-            //        }
-
-            //        query = vertsInFace[1] + dir;
-
-            //        if (vertPositions.ContainsKey(query))
-            //        {
-            //            faceVerts[vCount++] = vertPositions[query];
-            //        }
-
-            //        if (vCount == 3)
-            //        {
-            //            tris.Add(vi);
-            //            tris.Add(faceVerts[1]);
-            //            tris.Add(faceVerts[0]);
-
-            //            tris.Add(vi);
-            //            tris.Add(faceVerts[1]);
-            //            tris.Add(faceVerts[2]);
-            //        }
-            //        else
-            //        {
-            //            Debug.LogWarning("Failed to make slope");
-            //        }
-            //    }
-            //    else if (vCount == 1)
-            //    {
-            //        //wall/floor
-
-            //        Vector3 dir1;
-            //        Vector3 dir2;
-
-            //        if (n.x != 0)
-            //        {
-            //            dir1 = new Vector3(0, 1, 0);
-            //            dir2 = new Vector3(0, 0, 1);
-            //        }
-            //        else if (n.y != 0)
-            //        {
-            //            dir1 = new Vector3(1, 0, 0);
-            //            dir2 = new Vector3(0, 0, 1);
-            //        }
-            //        else if (n.z != 0)
-            //        {
-            //            dir1 = new Vector3(1, 0, 0);
-            //            dir2 = new Vector3(0, 1, 0);
-            //        }
-            //        else
-            //        {
-            //            dir1 = Vector3.zero;
-            //            dir2 = dir1;
-            //            Debug.LogError("Normal is not straight");
-            //        }
-
-            //        query = vv + dir1;
-            //        if (vertPositions.ContainsKey(query))
-            //        {
-            //            faceVerts[vCount++] = vertPositions[query];
-            //        }
-
-            //        query = vv + dir2;
-            //        if (vertPositions.ContainsKey(query))
-            //        {
-            //            faceVerts[vCount++] = vertPositions[query];
-            //        }
-
-            //        query = vv + dir1 + dir2;
-            //        if (vertPositions.ContainsKey(query))
-            //        {
-            //            faceVerts[vCount++] = vertPositions[query];
-            //        }
-
-            //        if (vCount == 4)
-            //        {
-            //            if (n == Vector3.right || n == Vector3.forward || n == Vector3.down)
-            //            {
-            //                tris.Add(faceVerts[0]);
-            //                tris.Add(faceVerts[1]);
-            //                tris.Add(faceVerts[3]);
-
-            //                tris.Add(faceVerts[0]);
-            //                tris.Add(faceVerts[3]);
-            //                tris.Add(faceVerts[2]);
-            //            }
-            //            else
-            //            {
-            //                tris.Add(faceVerts[1]);
-            //                tris.Add(faceVerts[0]);
-            //                tris.Add(faceVerts[3]);
-
-            //                tris.Add(faceVerts[3]);
-            //                tris.Add(faceVerts[0]);
-            //                tris.Add(faceVerts[2]);
-            //            }
-
-            //        }
-            //        else
-            //        {
-            //            Debug.LogWarning("Failed to make wall or floor for " + vi);
-            //        }
-            //    }
-            //    else
-            //    {
-            //        Debug.LogWarning("Vert with " + vCount + ". Unsure what to do");
-            //    }
-            //}
-            #endregion
-
+            
             return tris.ToArray();
         }
 

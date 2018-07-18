@@ -12,8 +12,8 @@ namespace World
     public class VoxelChunk
     {
 
-        static int width = 2;
-        static int height = 2;
+        static int width = 1;
+        static int height = 1;
 
         VoxelBlock[,,] voxChunks;
 
@@ -21,10 +21,12 @@ namespace World
 
         #region generator_vars
 
-        static float peakHeight = 64;
-        static float valleyHeight = 32;
+        static float peakHeight = 5;
+        static float valleyHeight = 1;
 
         static float dirtValue = .7f;
+        static float baseScale = 5f;
+
 
         static float xzxSeed = 0;
         static float xzySeed = 0;
@@ -62,7 +64,7 @@ namespace World
 
         public void Destroy(int x, int y, int z)
         {
-            voxelMap[2, 5, 2] = WorldMaterial.NONE;
+            voxelMap[x, y, z] = WorldMaterial.NONE;
         }
 
         void GenerateVoxelMap()
@@ -134,25 +136,27 @@ namespace World
 
             float weight = 0;
 
-            if (z <= height)
+            if (y > height)
             {
-                weight = height * GetDepthDenstity(x, y, z);
+                weight = 0;
             }
             else
             {
-                weight = height;
+                weight = 1;
             }
-
             return weight;
         }
 
-        float GetHeight( float x, float y )
+        float GetHeight( float x, float z )
         {
 
             float height = 0;
-            float basePerlin = Mathf.PerlinNoise(xzxSeed + x, xzySeed + y);
+            float basePerlin = Mathf.PerlinNoise(x / baseScale, z / baseScale);
+            float scale = peakHeight - valleyHeight;
+            
+            height = basePerlin * scale;
+            height += valleyHeight;
 
-            height = valleyHeight + (basePerlin * (peakHeight - valleyHeight));
             return height;
         }
 
