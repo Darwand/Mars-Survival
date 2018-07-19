@@ -18,6 +18,7 @@ namespace World
         #region mesh_references
         MeshFilter mf;
         MeshRenderer mr;
+        MeshCollider collider;
         Mesh ms;
         #endregion
         
@@ -48,6 +49,8 @@ namespace World
             mf = gameObject.AddComponent<MeshFilter>();
             mr = gameObject.AddComponent<MeshRenderer>();
 
+            collider = gameObject.AddComponent<MeshCollider>();
+
             ms = new Mesh()
             {
                 name = "Voxel Mesh"
@@ -55,7 +58,7 @@ namespace World
 
             mr.material = Resources.Load<Material>("Sand 03/Sand pattern 03");
 
-            mf.mesh = ms;
+            mf.sharedMesh = ms;
         }
 
         void Create()
@@ -63,20 +66,14 @@ namespace World
             InitComponents();
 
             MakeMesh();
-        }
 
-        void Update()
-        {
-            if(Input.GetKeyDown(KeyCode.Space))
-            {
-                chunk.Destroy(0, 0, 0);
-                MakeMesh();
-            }
+
+            collider.sharedMesh = null;
+            collider.sharedMesh = mf.sharedMesh;
         }
+        
         void MakeMesh()
         {
-
-            
             int[] tris;
             Vector2[] uvs;
             Vector3[] norms;
