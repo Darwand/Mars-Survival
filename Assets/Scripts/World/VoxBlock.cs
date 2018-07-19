@@ -264,7 +264,7 @@ namespace World
                             float nz = Mathf.Abs(faceNormal.z);
                             
                             Dictionary<float, List<int>> vertsAtHeight = new Dictionary<float, List<int>>();
-
+                            Vector3 quadCenterPoint = Vector3.zero;
                             Vector3 cross;
                             Vector3 v1;
                             Vector3 v2;
@@ -278,7 +278,7 @@ namespace World
                                         vertsAtHeight.Add(verts[faceVerts[i]].x, new List<int>());
                                     }
 
-                                    vertsAtHeight[verts[faceVerts[i]].x].Add(faceVerts[i]);
+                                    vertsAtHeight[verts[faceVerts[i]].x].Add(i);
                                 }
                             }
                             else if(ny > nz)
@@ -290,7 +290,7 @@ namespace World
                                         vertsAtHeight.Add(verts[faceVerts[i]].y, new List<int>());
                                     }
 
-                                    vertsAtHeight[verts[faceVerts[i]].y].Add(faceVerts[i]);
+                                    vertsAtHeight[verts[faceVerts[i]].y].Add(i);
                                 }
                             }
                             else
@@ -302,50 +302,137 @@ namespace World
                                         vertsAtHeight.Add(verts[faceVerts[i]].z, new List<int>());
                                     }
 
-                                    vertsAtHeight[verts[faceVerts[i]].z].Add(faceVerts[i]);
+                                    vertsAtHeight[verts[faceVerts[i]].z].Add(i);
                                 }
                             }
 
-                            int[] quadVerts = new int[4];
+                            int closest = -1;
+                            float dist = -1;
 
-                            //add triangle
-                            foreach(var kv in vertsAtHeight)
+                            foreach (var kv in vertsAtHeight)
                             {
                                 if (kv.Value.Count == 3)
                                 {
-                                    v1 = verts[kv.Value[1]] - verts[kv.Value[0]];
-                                    v2 = verts[kv.Value[2]] - verts[kv.Value[0]];
 
-                                    cross = Vector3.Cross(v1, v2);
-                                    Vector3 localNormal = normals[kv.Value[0]] + normals[kv.Value[1]] + normals[kv.Value[2]];
+                                    float qHeight = 0;
 
-                                    localNormal = Vector3.ClampMagnitude(localNormal, .1f);
-                                    cross = Vector3.ClampMagnitude(cross, .1f);
-
-                                    quadVerts[0] = kv.Value[1];
-                                    quadVerts[1] = kv.Value[2];
-
-                                    if (localNormal == cross)
+                                    foreach (var key in vertsAtHeight.Keys)
                                     {
-                                        tris.Add(kv.Value[0]);
-                                        tris.Add(kv.Value[1]);
-                                        tris.Add(kv.Value[2]);
+                                        if (key != kv.Key)
+                                        {
+                                            qHeight = key;
+                                            break;
+                                        }
                                     }
-                                    else
+
+                                    quadCenterPoint = verts[faceVerts[vertsAtHeight[qHeight][1]]] + verts[faceVerts[vertsAtHeight[qHeight][0]]];
+                                    quadCenterPoint /= 2f;
+                                    
+                                    foreach (var faceIndex in kv.Value)
                                     {
-                                        tris.Add(kv.Value[2]);
-                                        tris.Add(kv.Value[1]);
-                                        tris.Add(kv.Value[0]);
+                                        float vDist = (quadCenterPoint - verts[faceVerts[faceIndex]]).magnitude;
+                                        if(closest == -1 || vDist <= dist)
+                                        {
+                                            dist = vDist;
+                                            closest = faceIndex;
+                                        }
+                                    }
+
+                                    faceVerts[15] = faceVerts[closest];
+
+                                    int next = 14;
+                                    foreach(var faceIndex in kv.Value)
+                                    {
+                                        if(faceIndex != closest)
+                                        {
+                                            faceVerts[next--] = faceVerts[faceIndex];
+                                        }
                                     }
                                 }
                                 else
                                 {
-                                    quadVerts[2] = kv.Value[0];
-                                    quadVerts[3] = kv.Value[1];
+                                    faceVerts[12] = faceVerts[kv.Value[0]];
+                                    faceVerts[11] = faceVerts[kv.Value[1]];
                                 }
                             }
 
+
+                            //make the triangle
+                            Vector3 localNormal = normals[faceVerts[15]] + normals[faceVerts[14]] + normals[faceVerts[13]];
+                            localNormal.Normalize();
+
+                            v1 = verts[faceVerts[14]] - verts[faceVerts[15]];
+                            v2 = verts[faceVerts[13]] - verts[faceVerts[15]];
+
+                            cross = Vector3.Cross(v1, v2);
+                            cross.Normalize();
+
+                            if(cross == localNormal)
+                            {
+                                tris.Add(faceVerts[15]);
+                                tris.Add(faceVerts[14]);
+                                tris.Add(faceVerts[13]);
+
+                            }
+                            else
+                            {
+                                tris.Add(faceVerts[13]);
+                                tris.Add(faceVerts[14]);
+                                tris.Add(faceVerts[15]);
+                            }
+
+                            //get 4th vert for quad
                             
+                            float d1 = Vector3.Distance(quadCenterPoint, verts[faceVerts[14]]);
+                            float d2 = Vector3.Distance(quadCenterPoint, verts[faceVerts[13]]);
+                            int v4 = d1 < d2? faceVerts[14] : faceVerts[13];
+
+
+                            v1 = verts[faceVerts[11]] - verts[faceVerts[15]];
+                            v2 = verts[faceVerts[12]] - verts[faceVerts[15]];
+
+                            cross = Vector3.Cross(v1, v2);
+                            cross.Normalize();
+
+                            localNormal = normals[faceVerts[15]] + normals[faceVerts[11]] + normals[faceVerts[12]];
+                            localNormal.Normalize();
+
+                            if (cross == localNormal)
+                            {
+                                tris.Add(faceVerts[15]);
+                                tris.Add(faceVerts[11]);
+                                tris.Add(faceVerts[12]);
+                            }
+                            else
+                            {
+                                tris.Add(faceVerts[12]);
+                                tris.Add(faceVerts[11]);
+                                tris.Add(faceVerts[15]);
+                            }
+
+                            v1 = verts[faceVerts[12]] - verts[faceVerts[15]];
+                            v2 = verts[v4] - verts[faceVerts[15]];
+
+                            cross = Vector3.Cross(v1, v2);
+                            cross.Normalize();
+                            
+                            if(faceVerts[11] == 157 || faceVerts[12] == 157)
+                            {
+                                print("a");
+                            }
+
+                            if (cross == localNormal)
+                            {
+                                tris.Add(faceVerts[15]);
+                                tris.Add(faceVerts[12]);
+                                tris.Add(v4);
+                            }
+                            else
+                            {
+                                tris.Add(v4);
+                                tris.Add(faceVerts[12]);
+                                tris.Add(faceVerts[15]);
+                            }
 
                         }
                         else if (vCount == 4)

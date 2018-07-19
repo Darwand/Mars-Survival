@@ -7,7 +7,6 @@ public class Test : MonoBehaviour {
 	// Use this for initialization
 	void Start () {
         MeshFilter f = gameObject.AddComponent<MeshFilter>();
-        MeshRenderer r = gameObject.AddComponent<MeshRenderer>();
         Mesh m = new Mesh();
 
         f.mesh = m;
