@@ -26,7 +26,7 @@ public class HumanPlayerController : MonoBehaviour
 
         float y = controlledHuman.GetHeight();
 
-        cameraObject.transform.localPosition = new Vector3(0, y - .5f, 0);
+        cameraObject.transform.localPosition = new Vector3(0, y -.5f, 0);
         cameraObject.transform.localRotation = Quaternion.identity;
 
         controlledHuman.OnHeadRotation += RotateCamera;
